@@ -1,0 +1,49 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '6.0.0'
+}
+
+mainClassName = 'Qwevum.television.Television'
+version '1.0'
+sourceCompatibility = JavaVersion.VERSION_17
+
+repositories {
+    mavenCentral()
+    maven {
+        name 'm2-dv8tion'
+        url 'https://m2.dv8tion.net/releases'
+    }
+    mavenCentral()
+    jcenter()
+    /*maven {
+        name 'jfrog-duncte123'
+        url 'https://duncte123.jfrog.io/artifactory/maven'
+    }*/
+    maven {
+        url "https://jitpack.io"
+    }
+    maven{
+        name 'm2-duncte123'
+        url 'https://m2.duncte123.dev/releases'
+    }
+    maven {
+        url 'https://mvnrepository.com/artifact/me.duncte123/reliqua'
+    }
+}
+
+dependencies {
+    implementation group: 'net.dv8tion', name: 'JDA', version: '4.4.1_353'
+    implementation group: 'com.jagrosh', name: 'jda-utilities', version: '3.0.5'
+    implementation group: 'me.duncte123', name: 'botCommons', version: '3.0.16'
+    //implementation group: 'me.duncte123', name: 'botCommons', version: '2.3.11'
+    implementation group: 'me.duncte123', name: 'reliqua', version: '2.6.5'
+    implementation 'io.github.cdimascio:java-dotenv:5.2.2'
+    implementation group: 'org.menudocs', name: 'paste-client-java', version: '1.0.16'
+    implementation group: 'club.minnced', name: 'discord-webhooks', version: '0.1.8'
+    //implementation 'com.github.walkyst:lavaplayer-fork:1.4.3'
+    implementation 'dev.arbjerg:lavaplayer:2.2.1'
+    //1.3.97
+}
+
+compileJava.options.encoding = 'UTF-8'
