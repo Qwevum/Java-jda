@@ -11,7 +11,6 @@
 - `!joke` – Get a random joke
 - `!meme` – Fetch a meme from Reddit
 - `!ping` – Check bot latency
-- `!minecraft` – Minecraft server status checker
 - `!webhook` – Utility for working with Discord webhooks
 
 ### 🎵 Music Commands (LavaPlayer)
