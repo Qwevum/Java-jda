@@ -1,0 +1,42 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+
+# Ignore Python compiled files
+__pycache__/
+*.pyc
+
+# Ignore environment folder
+venv/
+
+# Ignore system files
+.DS_Store
+
+# Ignore sensitive files
+.env
+
+# Ignore IDE files
+*.iml
+.idea/
+*.classpath
+*.project
+*.settings/
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+
+# Ignore OS-specific files
+Thumbs.db
+
+# Ignore JARs if you don't want to commit them
+*.jar
+
+*.class
+
+# Project exclude paths
+/build/
+/out/
+
+
+/target
