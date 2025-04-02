@@ -16,7 +16,7 @@
 ### 🎵 Music Commands (LavaPlayer)
 - `!join` – Joins the voice channel
 - `!leave` – Leaves the voice channel
-- `!play <url|search>` – Plays a track or searches YouTube
+- `!play <url|search>` – Plays a track or searches YouTube (YouTube is currently bugged, use SoundCloud or Spotify link)
 - `!queue` – Shows current music queue
 - `!skip` – Skips the current song
 - `!stop` – Stops playback
