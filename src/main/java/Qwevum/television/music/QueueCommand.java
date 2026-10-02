@@ -2,64 +2,49 @@ package Qwevum.television.music;
 
 import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
-import Qwevum.television.music.lavaplayer.GuildMusicManager;
 import Qwevum.television.music.lavaplayer.PlayerManager;
+import Qwevum.television.util.TimeFormat;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import net.dv8tion.jda.api.entities.Message;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public class QueueCommand implements ICommand {
+    private static final int MAX_SHOWN = 20;
+
     @Override
     public void handle(CommandContext ctx) {
-        final TextChannel channel = ctx.getEvent().getTextChannel();
-        final GuildMusicManager musicManager = PlayerManager.getInstance().getMusicManager(ctx.getGuild());
-        final BlockingQueue<AudioTrack> queue = musicManager.scheduler.queue;
+        final List<AudioTrack> trackList = new ArrayList<>(PlayerManager.getInstance().getMusicManager(ctx.getGuild()).scheduler.queue);
 
-        if (queue.isEmpty()) {
-            channel.sendMessage("The queue is currently empty").queue();
+        if (trackList.isEmpty()) {
+            ctx.getChannel().sendMessage("The queue is currently empty").queue();
             return;
         }
 
-        final int trackCount = Math.min(queue.size(), 20);
-        final List<AudioTrack> trackList = new ArrayList<>(queue);
-        final MessageAction messageAction = channel.sendMessage("**Current Queue:**\n");
+        final StringBuilder message = new StringBuilder("**Current Queue:**\n");
+        int shown = 0;
 
-        for (int i = 0; i <  trackCount; i++) {
-            final AudioTrack track = trackList.get(i);
+        for (AudioTrack track : trackList) {
             final AudioTrackInfo info = track.getInfo();
+            final String line = String.format("#%d `%s by %s` [`%s`]\n",
+                    shown + 1, info.title, info.author, TimeFormat.format(track.getDuration()));
 
-            messageAction.append('#')
-                    .append(String.valueOf(i + 1))
-                    .append(" `")
-                    .append(String.valueOf(info.title))
-                    .append(" by ")
-                    .append(info.author)
-                    .append("` [`")
-                    .append(formatTime(track.getDuration()))
-                    .append("`]\n");
+            // Stay well under Discord's 2000 character limit, leaving room for the "more" line
+            if (shown == MAX_SHOWN || message.length() + line.length() > Message.MAX_CONTENT_LENGTH - 50) {
+                break;
+            }
+
+            message.append(line);
+            shown++;
         }
 
-        if (trackList.size() > trackCount) {
-            messageAction.append("And `")
-                    .append(String.valueOf(trackList.size() - trackCount))
-                    .append("` more...");
+        if (trackList.size() > shown) {
+            message.append("And `").append(trackList.size() - shown).append("` more...");
         }
 
-        messageAction.queue();
-    }
-
-    private String formatTime(long timeInMillis) {
-        final long hours = timeInMillis / TimeUnit.HOURS.toMillis(1);
-        final long minutes = timeInMillis / TimeUnit.MINUTES.toMillis(1);
-        final long seconds = timeInMillis % TimeUnit.MINUTES.toMillis(1) / TimeUnit.SECONDS.toMillis(1);
-
-        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        ctx.getChannel().sendMessage(message.toString()).queue();
     }
 
     @Override

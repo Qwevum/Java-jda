@@ -1,60 +1,73 @@
 plugins {
     id 'java'
     id 'application'
-    id 'com.github.johnrengelman.shadow' version '6.0.0'
+    id 'com.gradleup.shadow' version '9.6.1'
 }
 
-mainClassName = 'Qwevum.television.Television'
-version '1.0'
-sourceCompatibility = JavaVersion.VERSION_17
+group = 'Qwevum'
+version = '2.0.0'
 
 repositories {
     mavenCentral()
-    maven {
-        name 'm2-dv8tion'
-        url 'https://m2.dv8tion.net/releases'
-    }
-    mavenCentral()
-    jcenter()
-    /*maven {
-        name 'jfrog-duncte123'
-        url 'https://duncte123.jfrog.io/artifactory/maven'
-    }*/
-    maven {
-        url "https://jitpack.io"
-    }
-    maven{
-        name 'm2-duncte123'
-        url 'https://m2.duncte123.dev/releases'
-    }
-    maven {
-        url 'https://mvnrepository.com/artifact/me.duncte123/reliqua'
-    }
 }
 
-jar {
+// Compiled for Java 21 so the bot runs on hosts that only offer Java 21.
+// Voice (music) additionally needs Java 25 at runtime, see DaveSupport.
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+application {
+    mainClass = 'Qwevum.television.Television'
+}
+
+def jdaveVersion = '0.1.8'
+
+// JDAVE is published for Java 25 only. The code is compiled for 21, so let the runtime
+// classpath (and the shaded jar) accept Java 25 libraries.
+configurations.matching { it.name in ['runtimeClasspath', 'testRuntimeClasspath'] }.configureEach {
+    attributes { attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25) }
+}
+
+dependencies {
+    implementation('net.dv8tion:JDA:6.7.0') {
+        // LavaPlayer already produces Opus audio, so JDA's Opus encoder is not needed
+        exclude module: 'opus-java'
+    }
+
+    // Discord voice end-to-end encryption (DAVE). Only loaded on Java 25+, see DaveSupport.
+    runtimeOnly "club.minnced:jdave-api:$jdaveVersion"
+    runtimeOnly "club.minnced:jdave-native-linux-x86-64:$jdaveVersion"
+    runtimeOnly "club.minnced:jdave-native-linux-aarch64:$jdaveVersion"
+    runtimeOnly "club.minnced:jdave-native-win-x86-64:$jdaveVersion"
+    runtimeOnly "club.minnced:jdave-native-darwin:$jdaveVersion"
+
+    implementation 'dev.arbjerg:lavaplayer:2.2.7'
+    implementation 'io.github.cdimascio:dotenv-java:3.2.0'
+    implementation 'ch.qos.logback:logback-classic:1.6.5'
+
+    testImplementation platform('org.junit:junit-bom:6.1.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named('jar') {
     manifest {
         attributes(
-                'Main-Class': 'Qwevum.television.Television'
+                'Main-Class': 'Qwevum.television.Television',
+                // Lets JDAVE call its native library on Java 25 without warnings
+                'Enable-Native-Access': 'ALL-UNNAMED'
         )
     }
 }
 
-
-dependencies {
-    implementation group: 'net.dv8tion', name: 'JDA', version: '4.4.1_353'
-    //implementation("net.dv8tion:JDA:5.1.2")
-    //implementation group: 'com.jagrosh', name: 'jda-utilities', version: '3.0.5', ext: 'pom'
-    implementation 'com.github.Nagami-Yukki:JDA-Utilities:1.0'
-    implementation group: 'me.duncte123', name: 'botCommons', version: '3.1.18'
-    //implementation group: 'me.duncte123', name: 'botCommons', version: '2.3.11'
-    implementation group: 'me.duncte123', name: 'reliqua', version: '2.6.5'
-    implementation 'io.github.cdimascio:java-dotenv:5.2.2'
-    //implementation group: 'org.menudocs', name: 'paste-client-java', version: '1.0.16'
-    implementation group: 'club.minnced', name: 'discord-webhooks', version: '0.8.4'
-    //implementation 'com.github.walkyst:lavaplayer-fork:1.4.3'
-    implementation 'dev.arbjerg:lavaplayer:2.2.1'
-    //1.3.97
+tasks.named('shadowJar') {
+    // Fixed name so the hosting panel's startup jar never needs changing
+    archiveFileName = 'Television.jar'
+    mergeServiceFiles()
 }
-
-compileJava.options.encoding = 'UTF-8'

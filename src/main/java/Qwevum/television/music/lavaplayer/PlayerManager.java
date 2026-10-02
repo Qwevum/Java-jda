@@ -1,7 +1,5 @@
 package Qwevum.television.music.lavaplayer;
 
-import Qwevum.television.command.CommandContext;
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
@@ -10,26 +8,29 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerManager {
-    //private static final String EMOTE = "❌";
-    private static PlayerManager INSTANCE;
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerManager.class);
+    private static final PlayerManager INSTANCE = new PlayerManager();
 
-    private final Map<Long, GuildMusicManager> musicManagers;
-    private final AudioPlayerManager audioPlayerManager;
+    private final Map<Long, GuildMusicManager> musicManagers = new ConcurrentHashMap<>();
+    private final AudioPlayerManager audioPlayerManager = new DefaultAudioPlayerManager();
 
-    public PlayerManager() {
-        this.musicManagers = new HashMap<>();
-        this.audioPlayerManager = new DefaultAudioPlayerManager();
-
+    private PlayerManager() {
+        // Only remote sources (SoundCloud, Bandcamp, direct links, ...). The local file source was
+        // removed so people can't make the bot open files on the server.
         AudioSourceManagers.registerRemoteSources(this.audioPlayerManager);
-        AudioSourceManagers.registerLocalSource(this.audioPlayerManager);
+    }
+
+    public static PlayerManager getInstance() {
+        return INSTANCE;
     }
 
     public GuildMusicManager getMusicManager(Guild guild) {
@@ -42,47 +43,34 @@ public class PlayerManager {
         });
     }
 
-    public void loadAndPlay(TextChannel channel, String trackUrl) {
-        final GuildMusicManager musicManager = this.getMusicManager(channel.getGuild());
+    public void loadAndPlay(MessageChannel channel, Guild guild, String trackUrl) {
+        final GuildMusicManager musicManager = this.getMusicManager(guild);
 
         this.audioPlayerManager.loadItemOrdered(musicManager, trackUrl, new AudioLoadResultHandler() {
-            //private final EventWaiter waiter = new EventWaiter();
-
             @Override
             public void trackLoaded(AudioTrack track) {
-                final GuildMusicManager musicManager = PlayerManager.getInstance().getMusicManager(channel.getGuild());
                 musicManager.scheduler.queue(track);
-
-                channel.sendMessage("Adding to queue: `")
-                        .append(track.getInfo().title)
-                        .append("` by `")
-                        .append(track.getInfo().author)
-                        .append('`')
-                        .queue(/*message -> {
-                            message.addReaction(EMOTE).queue();
-
-                           this.waiter.waitForEvent(
-                                   GuildMessageReactionAddEvent.class,
-                                   (e) -> e.getMessageIdLong() == message.getIdLong() && !e.getUser().isBot(),
-                                   (e) -> {
-                                       musicManager.scheduler.player.stopTrack();
-                                       musicManager.scheduler.queue.clear();
-                                       channel.sendMessage("The player has been stopped and the queue has been cleared.").queue();
-                                   }
-                           );
-                        }*/);
+                sendAdded(track);
             }
 
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {
                 final List<AudioTrack> tracks = playlist.getTracks();
 
-                channel.sendMessage("Adding to queue: `")
-                        .append(String.valueOf(tracks.size()))
-                        .append("` tracks from playlists `")
-                        .append(playlist.getName())
-                        .append('`')
-                        .queue(/*message -> message.addReaction(EMOTE).queue()*/);
+                if (tracks.isEmpty()) {
+                    noMatches();
+                    return;
+                }
+
+                // A search returns its results as a "playlist"; only queue the best match
+                if (playlist.isSearchResult()) {
+                    AudioTrack track = playlist.getSelectedTrack() != null ? playlist.getSelectedTrack() : tracks.get(0);
+                    musicManager.scheduler.queue(track);
+                    sendAdded(track);
+                    return;
+                }
+
+                channel.sendMessageFormat("Adding to queue: `%d` tracks from playlist `%s`", tracks.size(), playlist.getName()).queue();
 
                 for (final AudioTrack track : tracks) {
                     musicManager.scheduler.queue(track);
@@ -91,21 +79,22 @@ public class PlayerManager {
 
             @Override
             public void noMatches() {
-                //
+                channel.sendMessage("I couldn't find anything for that.").queue();
             }
 
             @Override
             public void loadFailed(FriendlyException exception) {
-                //
+                LOGGER.warn("Failed to load {}", trackUrl, exception);
+                channel.sendMessage("I couldn't play that: " + exception.getMessage()).queue();
+            }
+
+            private void sendAdded(AudioTrack track) {
+                channel.sendMessageFormat("Adding to queue: `%s` by `%s`", track.getInfo().title, track.getInfo().author).queue();
             }
         });
     }
 
-    public static PlayerManager getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new PlayerManager();
-        }
-
-        return INSTANCE;
+    public void shutdown() {
+        this.audioPlayerManager.shutdown();
     }
 }

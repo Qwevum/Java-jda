@@ -1,84 +1,72 @@
 package Qwevum.television;
 
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
-import me.duncte123.botcommons.BotCommons;
-import net.dv8tion.jda.api.entities.TextChannel;
+import Qwevum.television.music.lavaplayer.PlayerManager;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
-import net.dv8tion.jda.api.events.ReadyEvent;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
-import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
+import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 
 public class Listener extends ListenerAdapter {
 
-    //private static final Logger LOGGER = (Logger) LoggerFactory.getLogger(Listener.class);
-    private final CommandManager manager;
-
-    public Listener(EventWaiter waiter){
-        manager = new CommandManager(waiter);
-    }
+    private static final Logger LOGGER = LoggerFactory.getLogger(Listener.class);
+    private final CommandManager manager = new CommandManager();
 
     @Override
     public void onReady(@NotNull ReadyEvent event) {
-        System.out.printf("%#s is ready", event.getJDA().getSelfUser());
+        LOGGER.info("{} is ready in {} servers", event.getJDA().getSelfUser().getName(), event.getGuildTotalCount());
     }
 
     @Override
     public void onGuildMemberJoin(@NotNull GuildMemberJoinEvent event) {
-        final List<TextChannel> dontDoThis = event.getGuild().getTextChannelsByName("general", true);
-
-        if (dontDoThis.isEmpty()) {
-            return;
-        }
-
-        final TextChannel pleaseDontDoThisAtAll = dontDoThis.get(0);
-
-        final String useGuildSpecificSettingsInstead = String.format("Welcome %s to %s",
-                event.getMember().getUser().getAsTag(), event.getGuild().getName());
-
-        pleaseDontDoThisAtAll.sendMessage(useGuildSpecificSettingsInstead).queue();
+        sendToGeneral(event.getGuild(), String.format("Welcome %s to %s",
+                event.getUser().getName(), event.getGuild().getName()));
     }
 
     @Override
-    public void onGuildMemberLeave(@NotNull GuildMemberLeaveEvent event) {
-        final List<TextChannel> dontDoThis = event.getGuild().getTextChannelsByName("general", true);
+    public void onGuildMemberRemove(@NotNull GuildMemberRemoveEvent event) {
+        sendToGeneral(event.getGuild(), String.format("Goodbye %s", event.getUser().getName()));
+    }
 
-        if (dontDoThis.isEmpty()) {
+    // TODO: let each server pick its own welcome channel instead of looking for "general"
+    private void sendToGeneral(Guild guild, String message) {
+        final List<TextChannel> channels = guild.getTextChannelsByName("general", true);
+
+        if (channels.isEmpty() || !channels.get(0).canTalk()) {
             return;
         }
 
-        final TextChannel pleaseDontDoThisAtAll = dontDoThis.get(0);
-
-        final String useGuildSpecificSettingsInstead = String.format("Goodbye %s",
-                event.getMember().getUser().getAsTag());
-
-        pleaseDontDoThisAtAll.sendMessage(useGuildSpecificSettingsInstead).queue();
+        channels.get(0).sendMessage(message).queue();
     }
 
     @Override
     public void onMessageReceived(@NotNull MessageReceivedEvent event) {
         User user = event.getAuthor();
 
-        if (user.isBot() || event.isWebhookMessage()){
+        if (user.isBot() || event.isWebhookMessage() || !event.isFromGuild()) {
             return;
         }
 
-        String prefix = Config.get("prefix");
+        String prefix = Config.prefix();
         String raw = event.getMessage().getContentRaw();
 
         if (raw.equalsIgnoreCase(prefix + "shutdown")
-                && user.getId().equals(Config.get("owner_id"))){
-            BotCommons.shutdown(event.getJDA());
+                && user.getId().equals(Config.get("owner_id"))) {
+            LOGGER.info("Shutdown requested by owner");
+            event.getJDA().shutdown();
+            PlayerManager.getInstance().shutdown();
             return;
         }
 
-        if (raw.startsWith(prefix)){
-            manager.handle(event);
-        }
+        manager.handle(event, prefix);
     }
 }

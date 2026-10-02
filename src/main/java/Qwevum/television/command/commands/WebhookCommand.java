@@ -3,48 +3,58 @@ package Qwevum.television.command.commands;
 import Qwevum.television.Config;
 import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.IncomingWebhookClient;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.WebhookClient;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 
+import java.util.EnumSet;
 import java.util.List;
 
 public class WebhookCommand implements ICommand {
 
-    private final WebhookClient client;
-
-    public WebhookCommand() {
-        WebhookClientBuilder builder = new WebhookClientBuilder(Config.get("webhook_url"));
-        builder.setThreadFactory((job) -> {
-            Thread thread = new Thread(job);
-            thread.setName("Webhook-Thread");
-            thread.setDaemon(true);
-            return thread;
-        });
-
-        this.client = builder.build();
-    }
+    private IncomingWebhookClient client;
 
     @Override
     public void handle(CommandContext ctx) {
         final List<String> args = ctx.getArgs();
-        final TextChannel channel = ctx.getEvent().getTextChannel();
+        final MessageChannel channel = ctx.getChannel();
 
-        if (args.isEmpty()){
+        if (args.isEmpty()) {
             channel.sendMessage("Missing arguments").queue();
             return;
         }
 
-        final User user = ctx.getAuthor();
+        final IncomingWebhookClient webhook = getClient(ctx);
 
-        WebhookMessageBuilder builder = new WebhookMessageBuilder()
-                .setUsername(ctx.getMember().getEffectiveName())
-                .setAvatarUrl(user.getEffectiveAvatarUrl().replaceFirst("gif", "png") + "?size=512")
-                .setContent(String.join(" ", args));
+        if (webhook == null) {
+            channel.sendMessage("The webhook isn't set up. Add WEBHOOK_URL to the bot's .env file.").queue();
+            return;
+        }
 
-        client.send(builder.build());
+        final Member member = ctx.getMember();
+
+        webhook.sendMessage(String.join(" ", args))
+                .setUsername(member.getEffectiveName())
+                .setAvatarUrl(member.getEffectiveAvatar().getUrl(512).replace(".gif", ".png"))
+                // Stops people using the webhook to ping @everyone or roles
+                .setAllowedMentions(EnumSet.noneOf(Message.MentionType.class))
+                .queue();
+    }
+
+    private synchronized IncomingWebhookClient getClient(CommandContext ctx) {
+        if (client == null) {
+            String url = Config.get("webhook_url");
+
+            if (url == null || url.isBlank()) {
+                return null;
+            }
+
+            client = WebhookClient.createClient(ctx.getJDA(), url);
+        }
+
+        return client;
     }
 
     @Override

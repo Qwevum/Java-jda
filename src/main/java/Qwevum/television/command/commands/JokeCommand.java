@@ -2,31 +2,36 @@ package Qwevum.television.command.commands;
 
 import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
-import com.fasterxml.jackson.databind.JsonNode;
-import me.duncte123.botcommons.messaging.EmbedUtils;
-import me.duncte123.botcommons.web.WebUtils;
+import Qwevum.television.util.Embeds;
+import Qwevum.television.util.Http;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.utils.data.DataObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JokeCommand implements ICommand {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JokeCommand.class);
+
     @Override
     public void handle(CommandContext ctx) {
-        final TextChannel channel = ctx.getEvent().getTextChannel();
-        WebUtils.ins.getJSONObject("https://apis.duncte123.me/joke").async((json) -> {
-            if (!json.get("success").asBoolean()) {
-                channel.sendMessage("Something went wrong, try again later").queue();
-                System.out.println(json);
-                return;
+        final MessageChannel channel = ctx.getChannel();
+
+        Http.getJson("https://apis.duncte123.me/joke").thenAccept((json) -> {
+            if (!json.getBoolean("success", false)) {
+                throw new IllegalStateException("API returned " + json);
             }
 
-            final JsonNode data = json.get("data");
-            final String title = data.get("title").asText();
-            final String url = data.get("url").asText();
-            final String body = data.get("body").asText();
-
-            final EmbedBuilder embed = EmbedUtils.getDefaultEmbed().setTitle(title, url).setDescription(body);
+            final DataObject data = json.getObject("data");
+            final EmbedBuilder embed = Embeds.defaultEmbed()
+                    .setTitle(data.getString("title"), data.getString("url", null))
+                    .setDescription(data.getString("body"));
 
             channel.sendMessageEmbeds(embed.build()).queue();
+        }).exceptionally((error) -> {
+            LOGGER.warn("Joke API request failed: {}", error.toString());
+            channel.sendMessage("Something went wrong, try again later").queue();
+            return null;
         });
     }
 
