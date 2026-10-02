@@ -4,6 +4,7 @@ import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
 import Qwevum.television.music.lavaplayer.GuildMusicManager;
 import Qwevum.television.music.lavaplayer.PlayerManager;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 
 public class SkipCommand implements ICommand {
     @Override
@@ -15,12 +16,14 @@ public class SkipCommand implements ICommand {
         final GuildMusicManager musicManager = PlayerManager.getInstance().getMusicManager(ctx.getGuild());
 
         if (musicManager.audioPlayer.getPlayingTrack() == null) {
-            ctx.getChannel().sendMessage("There is no track playing currently").queue();
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error("There is no track playing currently.")).queue();
             return;
         }
 
-        musicManager.scheduler.nextTrack();
-        ctx.getChannel().sendMessage("Skipped the current track").queue();
+        final AudioTrack skipped = musicManager.audioPlayer.getPlayingTrack();
+
+        musicManager.scheduler.skip();
+        ctx.getChannel().sendMessageEmbeds(MusicEmbeds.info("⏭️ Skipped " + MusicEmbeds.link(skipped.getInfo()))).queue();
     }
 
     @Override

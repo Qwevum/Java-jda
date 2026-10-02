@@ -1,5 +1,6 @@
 package Qwevum.television.music.lavaplayer;
 
+import Qwevum.television.music.MusicEmbeds;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
@@ -9,6 +10,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +37,7 @@ public class PlayerManager {
 
     public GuildMusicManager getMusicManager(Guild guild) {
         return this.musicManagers.computeIfAbsent(guild.getIdLong(), (guildId) -> {
-            final GuildMusicManager guildMusicManager = new GuildMusicManager(this.audioPlayerManager);
+            final GuildMusicManager guildMusicManager = new GuildMusicManager(this.audioPlayerManager, guild);
 
             guild.getAudioManager().setSendingHandler(guildMusicManager.getSendHandler());
 
@@ -43,14 +45,16 @@ public class PlayerManager {
         });
     }
 
-    public void loadAndPlay(MessageChannel channel, Guild guild, String trackUrl) {
+    public void loadAndPlay(MessageChannel channel, Guild guild, String trackUrl, long requesterId) {
         final GuildMusicManager musicManager = this.getMusicManager(guild);
+
+        // The music panel follows whichever channel music was last requested in
+        musicManager.panel.setChannel(channel.getIdLong());
 
         this.audioPlayerManager.loadItemOrdered(musicManager, trackUrl, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
-                musicManager.scheduler.queue(track);
-                sendAdded(track);
+                add(track);
             }
 
             @Override
@@ -64,32 +68,43 @@ public class PlayerManager {
 
                 // A search returns its results as a "playlist"; only queue the best match
                 if (playlist.isSearchResult()) {
-                    AudioTrack track = playlist.getSelectedTrack() != null ? playlist.getSelectedTrack() : tracks.get(0);
-                    musicManager.scheduler.queue(track);
-                    sendAdded(track);
+                    add(playlist.getSelectedTrack() != null ? playlist.getSelectedTrack() : tracks.get(0));
                     return;
                 }
 
-                channel.sendMessageFormat("Adding to queue: `%d` tracks from playlist `%s`", tracks.size(), playlist.getName()).queue();
+                channel.sendMessageEmbeds(MusicEmbeds.base()
+                        .setAuthor("Added playlist to queue")
+                        .setDescription(String.format("Added `%d` tracks from **%s**",
+                                tracks.size(), MarkdownSanitizer.escape(playlist.getName())))
+                        .build()).queue();
 
                 for (final AudioTrack track : tracks) {
+                    track.setUserData(requesterId);
                     musicManager.scheduler.queue(track);
                 }
+
+                musicManager.panel.refresh();
             }
 
             @Override
             public void noMatches() {
-                channel.sendMessage("I couldn't find anything for that.").queue();
+                channel.sendMessageEmbeds(MusicEmbeds.error("I couldn't find anything for that.")).queue();
             }
 
             @Override
             public void loadFailed(FriendlyException exception) {
                 LOGGER.warn("Failed to load {}", trackUrl, exception);
-                channel.sendMessage("I couldn't play that: " + exception.getMessage()).queue();
+                channel.sendMessageEmbeds(MusicEmbeds.error("I couldn't play that: " + exception.getMessage())).queue();
             }
 
-            private void sendAdded(AudioTrack track) {
-                channel.sendMessageFormat("Adding to queue: `%s` by `%s`", track.getInfo().title, track.getInfo().author).queue();
+            private void add(AudioTrack track) {
+                track.setUserData(requesterId);
+
+                // A track that starts right away gets the music panel instead of an "added" message
+                if (!musicManager.scheduler.queue(track)) {
+                    channel.sendMessageEmbeds(MusicEmbeds.added(track, musicManager.scheduler.queue.size())).queue();
+                    musicManager.panel.refresh();
+                }
             }
         });
     }

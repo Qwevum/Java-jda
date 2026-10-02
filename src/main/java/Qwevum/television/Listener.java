@@ -1,11 +1,13 @@
 package Qwevum.television;
 
+import Qwevum.television.music.MusicButtons;
 import Qwevum.television.music.lavaplayer.PlayerManager;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -46,6 +48,11 @@ public class Listener extends ListenerAdapter {
         }
 
         channels.get(0).sendMessage(message).queue();
+    }
+
+    @Override
+    public void onButtonInteraction(@NotNull ButtonInteractionEvent event) {
+        MusicButtons.handle(event);
     }
 
     @Override

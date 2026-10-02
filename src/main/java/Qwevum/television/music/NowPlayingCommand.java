@@ -2,9 +2,9 @@ package Qwevum.television.music;
 
 import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
+import Qwevum.television.music.lavaplayer.GuildMusicManager;
 import Qwevum.television.music.lavaplayer.PlayerManager;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 
 public class NowPlayingCommand implements ICommand {
     @Override
@@ -13,16 +13,17 @@ public class NowPlayingCommand implements ICommand {
             return;
         }
 
-        final AudioTrack track = PlayerManager.getInstance().getMusicManager(ctx.getGuild()).audioPlayer.getPlayingTrack();
+        final GuildMusicManager musicManager = PlayerManager.getInstance().getMusicManager(ctx.getGuild());
+        final AudioTrack track = musicManager.audioPlayer.getPlayingTrack();
 
         if (track == null) {
-            ctx.getChannel().sendMessage("There is no track playing currently").queue();
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error("There is no track playing currently.")).queue();
             return;
         }
 
-        final AudioTrackInfo info = track.getInfo();
-
-        ctx.getChannel().sendMessageFormat("Now playing `%s` by `%s` (Link: <%s>)", info.title, info.author, info.uri).queue();
+        // Brings the music panel back down to the bottom of this channel
+        musicManager.panel.setChannel(ctx.getChannel().getIdLong());
+        musicManager.panel.show(track);
     }
 
     @Override
@@ -32,6 +33,6 @@ public class NowPlayingCommand implements ICommand {
 
     @Override
     public String getHelp() {
-        return "Shows the currently playing song.";
+        return "Shows the music panel for the current song.";
     }
 }

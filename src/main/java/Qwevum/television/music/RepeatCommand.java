@@ -17,7 +17,10 @@ public class RepeatCommand implements ICommand {
 
         musicManager.scheduler.repeating = newRepeating;
 
-        ctx.getChannel().sendMessageFormat("The player has been set to **%s**", newRepeating ? "repeating" : "not repeating").queue();
+        musicManager.panel.refresh();
+
+        ctx.getChannel().sendMessageEmbeds(MusicEmbeds.info(
+                "🔁 The player has been set to **" + (newRepeating ? "repeating" : "not repeating") + "**")).queue();
     }
 
     @Override

@@ -15,13 +15,11 @@ public class LeaveCommand implements ICommand {
 
         GuildMusicManager musicManager = PlayerManager.getInstance().getMusicManager(ctx.getGuild());
 
-        musicManager.scheduler.repeating = false;
-        musicManager.scheduler.queue.clear();
-        musicManager.audioPlayer.stopTrack();
+        musicManager.stop("I left the voice channel.");
 
         ctx.getGuild().getAudioManager().closeAudioConnection();
 
-        ctx.getChannel().sendMessage("I have left the voice channel").queue();
+        ctx.getChannel().sendMessageEmbeds(MusicEmbeds.info("👋 I have left the voice channel.")).queue();
     }
 
     @Override

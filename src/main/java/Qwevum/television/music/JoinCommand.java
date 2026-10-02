@@ -14,7 +14,7 @@ public class JoinCommand implements ICommand {
         final MessageChannel channel = ctx.getChannel();
 
         if (!DaveSupport.isAvailable()) {
-            channel.sendMessage(DaveSupport.unavailableMessage()).queue();
+            channel.sendMessageEmbeds(MusicEmbeds.error(DaveSupport.unavailableMessage())).queue();
             return;
         }
 
@@ -22,26 +22,26 @@ public class JoinCommand implements ICommand {
         final GuildVoiceState selfVoiceState = self.getVoiceState();
 
         if (selfVoiceState != null && selfVoiceState.inAudioChannel()) {
-            channel.sendMessage("I'm already in a voice channel").queue();
+            channel.sendMessageEmbeds(MusicEmbeds.error("I'm already in a voice channel.")).queue();
             return;
         }
 
         final GuildVoiceState memberVoiceState = ctx.getMember().getVoiceState();
 
         if (memberVoiceState == null || !memberVoiceState.inAudioChannel()) {
-            channel.sendMessage("You need to be in a voice channel for this command to work").queue();
+            channel.sendMessageEmbeds(MusicEmbeds.error("You need to be in a voice channel for this command to work.")).queue();
             return;
         }
 
         final AudioChannel memberChannel = memberVoiceState.getChannel();
 
         if (!self.hasPermission(memberChannel, Permission.VOICE_CONNECT, Permission.VOICE_SPEAK)) {
-            channel.sendMessage("I don't have permission to join and speak in that voice channel").queue();
+            channel.sendMessageEmbeds(MusicEmbeds.error("I don't have permission to join and speak in that voice channel.")).queue();
             return;
         }
 
         ctx.getGuild().getAudioManager().openAudioConnection(memberChannel);
-        channel.sendMessageFormat("Connecting to `🔊 %s`", memberChannel.getName()).queue();
+        channel.sendMessageEmbeds(MusicEmbeds.info("Connecting to 🔊 " + MusicEmbeds.code(memberChannel.getName()))).queue();
     }
 
     @Override

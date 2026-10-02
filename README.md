@@ -22,7 +22,12 @@
 - `!skip` – Skips the current song
 - `!stop` – Stops playback and clears the queue
 - `!repeat` – Toggles repeat mode
-- `!nowplaying` – Shows the currently playing track
+- `!nowplaying` – Moves the music panel for the current track to the bottom of the chat
+
+Whenever a song starts, the bot posts a **music panel** embed showing who requested it, how long it is
+and who made it, with buttons for volume down/up, back, pause/resume, skip, shuffle, loop, stop,
+AutoPlay (keeps playing songs by the same artist when the queue runs out) and the playlist. Only
+people in the bot's voice channel can use the buttons.
 
 > **Why Java 25 for music?** Since March 2026 Discord only accepts end-to-end encrypted (DAVE) voice
 > connections. The library that implements this ([JDAVE](https://github.com/MinnDevelopment/jdave))

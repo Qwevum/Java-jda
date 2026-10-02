@@ -10,12 +10,12 @@ public class PlayCommand implements ICommand {
     @Override
     public void handle(CommandContext ctx) {
         if (ctx.getArgs().isEmpty()) {
-            ctx.getChannel().sendMessage("Correct usage is `!play <SoundCloud link or search>`").queue();
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error("Correct usage is `!play <SoundCloud link or search>`")).queue();
             return;
         }
 
         if (!DaveSupport.isAvailable()) {
-            ctx.getChannel().sendMessage(DaveSupport.unavailableMessage()).queue();
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error(DaveSupport.unavailableMessage())).queue();
             return;
         }
 
@@ -29,7 +29,7 @@ public class PlayCommand implements ICommand {
             link = "scsearch:" + link;
         }
 
-        PlayerManager.getInstance().loadAndPlay(ctx.getChannel(), ctx.getGuild(), link);
+        PlayerManager.getInstance().loadAndPlay(ctx.getChannel(), ctx.getGuild(), link, ctx.getAuthor().getIdLong());
     }
 
     @Override
