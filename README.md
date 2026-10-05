@@ -17,7 +17,7 @@
 ### 🎵 Music Commands (LavaPlayer, needs Java 25)
 - `!join` – Joins your voice channel
 - `!leave` – Leaves the voice channel
-- `!play <link or search>` – Plays a SoundCloud link or searches SoundCloud (other direct links like Bandcamp or `.mp3` URLs also work)
+- `!play <link or search>` – Plays a YouTube, SoundCloud, Spotify or Apple Music link (songs, playlists and albums), or searches SoundCloud. Pick where to search with `yt:`, `sc:`, `sp:` or `am:`, e.g. `!play am: blinding lights`. Spotify and Apple Music songs play from their YouTube match, as do SoundCloud songs that SoundCloud won't stream (many record-label uploads). Other direct links like Bandcamp or `.mp3` URLs also work
 - `!queue` – Shows the current music queue
 - `!skip` – Skips the current song
 - `!stop` – Stops playback and clears the queue
@@ -26,7 +26,7 @@
 
 Whenever a song starts, the bot posts a **music panel** embed showing who requested it, how long it is
 and who made it, with buttons for volume down/up, back, pause/resume, skip, shuffle, loop, stop,
-AutoPlay (keeps playing songs by the same artist when the queue runs out) and the playlist. Only
+AutoPlay (when the queue runs out, keeps playing similar songs from the last song's YouTube Mix, like YouTube Music's radio or Spotify's autoplay) and the playlist. Only
 people in the bot's voice channel can use the buttons.
 
 > **Why Java 25 for music?** Since March 2026 Discord only accepts end-to-end encrypted (DAVE) voice
@@ -69,6 +69,16 @@ WEBHOOK_URL=https://discord.com/api/webhooks/...
 
 **Never share your `.env` file or commit it.** It is already listed in `.gitignore`.
 The values can also be provided as normal environment variables instead.
+
+**Spotify search (optional):** Spotify links work out of the box, but `!play sp: <search>` needs a free
+app from the [Spotify developer dashboard](https://developer.spotify.com/dashboard). Put its client ID
+and secret in `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
+
+**YouTube sign-in (optional):** YouTube works without an account from home connections. Hosting
+providers' servers are often blocked by YouTube ("Sign in to confirm you're not a bot"). If that happens,
+link a spare Google account (YouTube may limit accounts used by bots): set `YOUTUBE_OAUTH=new`, start
+the bot, enter the code it prints at <https://www.google.com/device>, then replace `new` with the
+refresh token it prints.
 
 ### 3. Build
 ```bash

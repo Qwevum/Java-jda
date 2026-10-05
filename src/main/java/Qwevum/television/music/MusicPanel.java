@@ -88,6 +88,15 @@ public class MusicPanel {
         channel.editMessageEmbedsById(current.messageId(), embed(track)).setComponents(buttons()).queue(null, IGNORE);
     }
 
+    /** Posts a one-off message in the panel's channel, like a track failing to play. */
+    public void notice(MessageEmbed embed) {
+        final GuildMessageChannel channel = channel(this.channelId);
+
+        if (channel != null && channel.canTalk()) {
+            channel.sendMessageEmbeds(embed).queue(null, IGNORE);
+        }
+    }
+
     /** Turns the live panel into a plain message without buttons. */
     public void finish(String text) {
         this.version.incrementAndGet();
