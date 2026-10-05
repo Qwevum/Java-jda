@@ -2,40 +2,29 @@ package Qwevum.television.command.commands;
 
 import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 public class EventWaiterCommand implements ICommand {
-    private static final String EMOTE = "✔";
-    private final EventWaiter waiter;
-
-    public EventWaiterCommand(EventWaiter waiter) {
-        this.waiter = waiter;
-    }
+    private static final Emoji EMOTE = Emoji.fromUnicode("✔");
 
     @Override
     public void handle(CommandContext ctx) {
-        final TextChannel channel = ctx.getEvent().getTextChannel();
+        final MessageChannel channel = ctx.getChannel();
 
-        channel.sendMessage("react with ")
-                .append(EMOTE)
-                .queue(message -> {
-                    message.addReaction(EMOTE).queue();
+        channel.sendMessage("react with " + EMOTE.getFormatted()).queue(message -> {
+            message.addReaction(EMOTE).queue();
 
-                    this.waiter.waitForEvent(
-                            GuildMessageReactionAddEvent.class,
-                            (e) -> e.getMessageIdLong() == message.getIdLong() && !e.getUser().isBot(),
-                            (e) -> {
-                                channel.sendMessageFormat("%s was the first to react", e.getUser()).queue();
-                            },
-                            5L, TimeUnit.SECONDS,
-                            () -> channel.sendMessage("You waited too long.").queue()
-
-                    );
-                });
+            // JDA's built-in replacement for JDA-Utilities' EventWaiter
+            ctx.getJDA().listenOnce(MessageReactionAddEvent.class)
+                    .filter((e) -> e.getMessageIdLong() == message.getIdLong()
+                            && e.getMember() != null && !e.getMember().getUser().isBot())
+                    .timeout(Duration.ofSeconds(5), () -> channel.sendMessage("You waited too long.").queue())
+                    .subscribe((e) -> channel.sendMessageFormat("%s was the first to react", e.getMember().getAsMention()).queue());
+        });
     }
 
     @Override

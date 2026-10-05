@@ -2,87 +2,80 @@ package Qwevum.television.music;
 
 import Qwevum.television.command.CommandContext;
 import Qwevum.television.command.ICommand;
-import Qwevum.television.music.lavaplayer.GuildMusicManager;
 import Qwevum.television.music.lavaplayer.PlayerManager;
-import com.jagrosh.jdautilities.commons.waiter.EventWaiter;
-import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
-import net.dv8tion.jda.api.entities.GuildVoiceState;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.TextChannel;
-import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent;
+import Qwevum.television.util.Urls;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PlayCommand implements ICommand {
-    //private static final String EMOTE = "❌";
-    private final EventWaiter waiter;
+    private static final String USAGE = "`!play <link or search>` or `!play <yt:|sc:|sp:|am:> <search>`";
+    // "sp: never gonna give you up" picks where to search; the colon keeps titles like "am i wrong" a normal search
+    private static final Pattern SOURCE_PREFIX = Pattern.compile("^(\\w+):\\s*(.*)$", Pattern.DOTALL);
 
-    public PlayCommand(EventWaiter waiter) {
-        this.waiter = waiter;
-        
-    }
+    private static final Map<String, String> SEARCH_PREFIXES = Map.of(
+            "yt", "ytsearch:", "youtube", "ytsearch:",
+            "sc", "scsearch:", "soundcloud", "scsearch:",
+            "sp", "spsearch:", "spotify", "spsearch:",
+            "am", "amsearch:", "apple", "amsearch:", "applemusic", "amsearch:");
 
-
-    @SuppressWarnings("ConstantConditions")
     @Override
     public void handle(CommandContext ctx) {
-        final TextChannel channel = ctx.getEvent().getTextChannel();
-
-        if (ctx.getArgs().isEmpty()){
-            channel.sendMessage("Correct usage is `!play <youtube link>`").queue();
+        if (ctx.getArgs().isEmpty()) {
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error("Correct usage is " + USAGE)).queue();
             return;
         }
 
-        final Member self = ctx.getSelfMember();
-        final GuildVoiceState selfVoiceState = self.getVoiceState();
-
-        if (!selfVoiceState.inVoiceChannel()) {
-            channel.sendMessage("I need to be in a voice channel for this to work.").queue();
+        if (!DaveSupport.isAvailable()) {
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error(DaveSupport.unavailableMessage())).queue();
             return;
         }
 
-        final Member member = ctx.getMember();
-        final GuildVoiceState memberVoiceState = member.getVoiceState();
+        final PlayerManager playerManager = PlayerManager.getInstance();
+        final String identifier = toIdentifier(ctx.getArgs());
 
-        if (!memberVoiceState.inVoiceChannel()) {
-            channel.sendMessage("You need to be in a voice channel for this command to work.").queue();
+        if (identifier == null) {
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error("Tell me what to search for, like `!play sc: never gonna give you up`")).queue();
             return;
         }
 
-        if (!memberVoiceState.getChannel().equals(selfVoiceState.getChannel())) {
-            channel.sendMessage("You need to be in the same voice channel as me for this to work.").queue();
+        if (identifier.startsWith("spsearch:") && !playerManager.isSpotifySearchReady()) {
+            ctx.getChannel().sendMessageEmbeds(MusicEmbeds.error("Spotify search isn't set up on this bot, but Spotify links work. "
+                    + "The bot owner can add `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET` to enable it (see the README).")).queue();
             return;
         }
 
-        String link = String.join(" ", ctx.getArgs());
-
-        if (!isUrl(link)) {
-            link = "soundCloudSearch:" + link;
+        if (!VoiceChecks.inSameChannel(ctx)) {
+            return;
         }
 
-        PlayerManager.getInstance().loadAndPlay(channel, link);
+        playerManager.loadAndPlay(ctx.getChannel(), ctx.getGuild(), identifier, ctx.getAuthor().getIdLong());
+    }
 
-        //final GuildMusicManager musicManager = PlayerManager.getInstance().getMusicManager(channel.getGuild());
-        //musicManager.scheduler.queue(track);
+    /**
+     * Turns the command's words into something LavaPlayer can load: links are kept as they are, and searches
+     * go to the source named before a colon, or by default SoundCloud.
+     * Returns null when only a source was given without anything to search for.
+     */
+    static String toIdentifier(List<String> args) {
+        final String text = String.join(" ", args).trim();
 
-        /*channel.sendMessage("Click ")
-                .append(EMOTE)
-                .append(" to stop music.")
-                .queue(message -> {
-                    message.addReaction(EMOTE).queue();
+        if (Urls.isHttpUrl(text)) {
+            return text;
+        }
 
-                    this.waiter.waitForEvent(
-                            GuildMessageReactionAddEvent.class,
-                            (e) -> e.getMessageIdLong() == message.getIdLong() && !e.getUser().isBot(),
-                            (e) -> {
-                                musicManager.scheduler.player.stopTrack();
-                                musicManager.scheduler.queue.clear();
-                                channel.sendMessage("The player has been stopped and the queue has been cleared.").queue();
-                            }
-                    );
-                });*/
+        final Matcher matcher = SOURCE_PREFIX.matcher(text);
+        final String prefix = matcher.matches() ? SEARCH_PREFIXES.get(matcher.group(1).toLowerCase(Locale.ROOT)) : null;
 
+        if (prefix != null) {
+            final String query = matcher.group(2).trim();
+            return query.isEmpty() ? null : prefix + query;
+        }
+
+        return "scsearch:" + text;
     }
 
     @Override
@@ -92,16 +85,8 @@ public class PlayCommand implements ICommand {
 
     @Override
     public String getHelp() {
-        return "Plays a song\n" +
-                "Usage: `!play <SoundCloud link>`";
-    }
-
-    private boolean isUrl(String url){
-        try{
-            new URI(url);
-            return true;
-        } catch (URISyntaxException e){
-            return false;
-        }
+        return "Plays a song from YouTube, SoundCloud, Spotify or Apple Music\n" +
+                "Usage: " + USAGE + "\n" +
+                "`yt:` YouTube, `sc:` SoundCloud, `sp:` Spotify, `am:` Apple Music";
     }
 }
