@@ -14,7 +14,7 @@
 - `!webhook <message>` – Repost your message through a webhook with your name and avatar
 - `!eventwaiter` – Small demo that waits for someone to react
 
-### 🎵 Music Commands (LavaPlayer, needs Java 25)
+### 🎵 Music Commands (LavaPlayer)
 - `!join` – Joins your voice channel
 - `!leave` – Leaves the voice channel
 - `!play <link or search>` – Plays a YouTube, SoundCloud, Spotify or Apple Music link (songs, playlists and albums), or searches SoundCloud. Pick where to search with `yt:`, `sc:`, `sp:` or `am:`, e.g. `!play am: blinding lights`. Spotify and Apple Music songs play from their YouTube match, as do SoundCloud songs that SoundCloud won't stream (many record-label uploads). Other direct links like Bandcamp or `.mp3` URLs also work
@@ -29,10 +29,9 @@ and who made it, with buttons for volume down/up, back, pause/resume, skip, shuf
 AutoPlay (when the queue runs out, keeps playing similar songs from the last song's YouTube Mix, like YouTube Music's radio or Spotify's autoplay) and the playlist. Only
 people in the bot's voice channel can use the buttons.
 
-> **Why Java 25 for music?** Since March 2026 Discord only accepts end-to-end encrypted (DAVE) voice
+> **Why Java 25?** Since March 2026 Discord only accepts end-to-end encrypted (DAVE) voice
 > connections. The library that implements this ([JDAVE](https://github.com/MinnDevelopment/jdave))
-> requires Java 25. The bot itself runs on Java 21 or newer: on Java 21 everything except music works,
-> and music turns on automatically when the bot is started with Java 25.
+> requires Java 25, so the whole bot is built for and runs on Java 25.
 
 ---
 
@@ -45,7 +44,7 @@ people in the bot's voice channel can use the buttons.
 ## 🚀 Running It Yourself
 
 ### Requirements
-- Java 21 or newer (Java 25 for music)
+- Java 25
 - A Discord bot token
 - Gradle is **not** required: the included Gradle wrapper (`gradlew` / `gradlew.bat`) downloads it
 
@@ -106,8 +105,7 @@ Run it from the folder that contains your `.env` file.
 2. In the panel's **File Manager**, upload `build/libs/Television.jar` and your `.env` file.
 3. On the **Startup** page:
    - Set the jar file name to `Television.jar`.
-   - Pick the **Docker Image**: **Java 25** if available (everything works), otherwise **Java 21**
-     (everything except music).
+   - Pick the **Java 25** Docker Image. The bot won't start on older Java versions.
 4. Restart the server from the **Console** page. You should see `... is ready in N servers`.
 
 To update the bot later, rebuild and upload the new `Television.jar` over the old one, then restart.
@@ -130,7 +128,7 @@ src/main/java/Qwevum/television/
 │   ├── CommandContext.java  The message, channel, guild and args passed to a command
 │   └── commands/            Fun & utility commands
 ├── music/                   Music commands
-│   ├── DaveSupport.java     Turns on encrypted voice when running on Java 25+
+│   ├── DaveSupport.java     Sets up encrypted (DAVE) voice, which Discord requires
 │   ├── VoiceChecks.java     Shared "are we in the same voice channel" checks
 │   └── lavaplayer/          LavaPlayer glue: player per server, queue, audio sending
 └── util/                    Small helpers (embeds, HTTP/JSON, time formatting, URLs)

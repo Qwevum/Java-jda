@@ -16,8 +16,12 @@ repositories {
     maven { url = 'https://maven.lavalink.dev/snapshots' }
 }
 
-// Compiled for Java 21 so the bot runs on hosts that only offer Java 21.
-// Voice (music) additionally needs Java 25 at runtime, see DaveSupport.
+// Java 25 everywhere: JDAVE (Discord's required voice encryption) only supports Java 25
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.release = 25
     options.encoding = 'UTF-8'
@@ -29,20 +33,14 @@ application {
 
 def jdaveVersion = '0.1.8'
 
-// JDAVE is published for Java 25 only. The code is compiled for 21, so let the runtime
-// classpath (and the shaded jar) accept Java 25 libraries.
-configurations.matching { it.name in ['runtimeClasspath', 'testRuntimeClasspath'] }.configureEach {
-    attributes { attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25) }
-}
-
 dependencies {
     implementation('net.dv8tion:JDA:6.7.0') {
         // LavaPlayer already produces Opus audio, so JDA's Opus encoder is not needed
         exclude module: 'opus-java'
     }
 
-    // Discord voice end-to-end encryption (DAVE). Only loaded on Java 25+, see DaveSupport.
-    runtimeOnly "club.minnced:jdave-api:$jdaveVersion"
+    // Discord voice end-to-end encryption (DAVE), required for voice since March 2026
+    implementation "club.minnced:jdave-api:$jdaveVersion"
     runtimeOnly "club.minnced:jdave-native-linux-x86-64:$jdaveVersion"
     runtimeOnly "club.minnced:jdave-native-linux-aarch64:$jdaveVersion"
     runtimeOnly "club.minnced:jdave-native-win-x86-64:$jdaveVersion"
